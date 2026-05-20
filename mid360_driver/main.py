@@ -42,7 +42,7 @@ import threading
 import time
 from pathlib import Path
 
-from robonix_api import Capability, Ok, Err
+from robonix_api import Primitive, Ok, Err
 
 logging.basicConfig(
     level=os.environ.get("MID360_LOG_LEVEL", "INFO"),
@@ -50,7 +50,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("mid360")
 
-cap = Capability(id="mid360_lidar", namespace="robonix/primitive/lidar")
+cap = Primitive(id="mid360_lidar", namespace="robonix/primitive/lidar")
 
 _pkg_root: Path = Path(__file__).resolve().parent.parent
 _livox_proc: subprocess.Popen | None = None
@@ -237,18 +237,49 @@ def _wait_for_pointcloud(topic: str, timeout_s: float) -> bool:
 # ── lifecycle handlers ───────────────────────────────────────────────────
 @cap.on_init
 def init(cfg: dict):
-    """REGISTERED → INACTIVE: spawn livox, wait for cloud, declare topic."""
+    """REGISTERED → INACTIVE: spawn livox, wait for cloud, declare topic.
+
+    Self-heal: the MID-360 + livox_ros_driver2 intermittently completes
+    the control-channel handshake (set work-mode / enable imu) but never
+    starts the point-data UDP stream — the well-known "connected but not
+    sampling" state that otherwise needs a manual driver/device restart.
+    Detect it (no PointCloud2 within sentinel_timeout) and respawn the
+    driver up to `livox_retries` times so a remote deploy recovers
+    without anyone power-cycling the lidar.
+    """
     lidar_topic = cfg.get("lidar_topic", "/scanner/cloud")
     sentinel_timeout = float(cfg.get("sentinel_timeout_s", 30.0))
+    retries = int(cfg.get("livox_retries", 3))
 
-    try:
-        _spawn_livox(cfg)
-    except Exception as e:  # noqa: BLE001
-        return Err(f"spawn livox failed: {e}")
+    last_err = ""
+    for attempt in range(1, retries + 1):
+        try:
+            _spawn_livox(cfg)
+        except Exception as e:  # noqa: BLE001
+            return Err(f"spawn livox failed: {e}")
 
-    if not _wait_for_pointcloud(lidar_topic, sentinel_timeout):
+        if _wait_for_pointcloud(lidar_topic, sentinel_timeout):
+            if attempt > 1:
+                log.info("livox point stream recovered on attempt %d/%d",
+                         attempt, retries)
+            break
+
+        last_err = (f"no PointCloud2 on {lidar_topic} within "
+                    f"{sentinel_timeout:.1f}s (attempt {attempt}/{retries})")
+        log.warning("%s — respawning livox driver", last_err)
         _kill_livox()
-        return Err(f"no PointCloud2 on {lidar_topic} within {sentinel_timeout:.1f}s")
+    else:
+        return Err(
+            f"{last_err}; livox never started its point stream after "
+            f"{retries} respawns — MID-360 may need a hardware power-cycle."
+        )
+
+    # parent_frame → frame_id static TF (no-op when extrinsics absent).
+    try:
+        _spawn_stp(cfg)
+    except Exception as e:  # noqa: BLE001
+        _kill_livox()
+        return Err(f"spawn static_transform_publisher failed: {e}")
 
     # parent_frame → frame_id static TF (no-op when extrinsics absent).
     try:
