@@ -52,6 +52,15 @@ log = logging.getLogger("mid360")
 
 cap = Primitive(id="mid360_lidar", namespace="robonix/primitive/lidar")
 
+
+def _pump_output(stream, tag: str) -> None:
+    """Forward a child process's merged stdout/stderr into scribe via the
+    package logger — one unified log stream, no side-car *.log file."""
+    for raw in iter(stream.readline, b""):
+        line = raw.decode(errors="replace").rstrip()
+        if line:
+            log.info("[%s] %s", tag, line)
+
 _pkg_root: Path = Path(__file__).resolve().parent.parent
 _livox_proc: subprocess.Popen | None = None
 _stp_proc: subprocess.Popen | None = None
@@ -114,17 +123,15 @@ def _spawn_livox(cfg: dict) -> None:
     env["LIVOX_PUBLISH_FREQ"] = str(cfg.get("publish_freq", 10.0))
     env["LIVOX_FRAME_ID"] = str(cfg.get("frame_id", "livox_frame"))
 
-    log_path = _pkg_root / "rbnx-build" / "data" / "livox.log"
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    log_fh = open(log_path, "ab", buffering=0)
-    log.info("spawning livox driver (xfer_format=%s) → %s",
-             env["LIVOX_XFER_FORMAT"], log_path)
+    log.info("spawning livox driver (xfer_format=%s)", env["LIVOX_XFER_FORMAT"])
     _livox_proc = subprocess.Popen(
         ["ros2", "launch", "livox_ros_driver2", "msg_MID360_launch.py"],
         env=env,
-        stdout=log_fh, stderr=log_fh,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         start_new_session=True,
     )
+    threading.Thread(target=_pump_output, args=(_livox_proc.stdout, "livox"),
+                     daemon=True).start()
 
 
 def _kill_livox() -> None:
@@ -171,14 +178,14 @@ def _spawn_stp(cfg: dict) -> None:
         "--frame-id", parent,
         "--child-frame-id", child,
     ]
-    log_path = _pkg_root / "rbnx-build" / "data" / "stp.log"
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    log_fh = open(log_path, "ab", buffering=0)
     log.info("spawning static_transform_publisher %s → %s @ %s",
              parent, child, ext)
     _stp_proc = subprocess.Popen(
-        args, stdout=log_fh, stderr=log_fh, start_new_session=True,
+        args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        start_new_session=True,
     )
+    threading.Thread(target=_pump_output, args=(_stp_proc.stdout, "stp"),
+                     daemon=True).start()
 
 
 def _kill_stp() -> None:
