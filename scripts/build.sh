@@ -37,6 +37,11 @@ ln -snf "$PKG/src/livox_ros_driver2" "$PKG/rbnx-build/ws/src/livox_ros_driver2"
 ROS_DISTRO="${ROS_DISTRO:-humble}"
 # shellcheck disable=SC1091
 set +u; source "/opt/ros/${ROS_DISTRO}/setup.bash"; set -u
+ROBONIX_ZC_SETUP="${ROBONIX_ZC_SETUP:-/home/warth/Desktop/build/ros/install/setup.bash}"
+if [[ -f "$ROBONIX_ZC_SETUP" ]]; then
+    # shellcheck disable=SC1090
+    set +u; source "$ROBONIX_ZC_SETUP"; set -u
+fi
 
 echo "[mid360_lidar/build] colcon build (livox_ros_driver2)"
 cd "$PKG/rbnx-build/ws"

@@ -227,6 +227,7 @@ else(ROS_EDITION STREQUAL "ROS2")
   find_package(std_msgs REQUIRED)
   find_package(builtin_interfaces REQUIRED)
   find_package(rosidl_default_generators REQUIRED)
+  find_package(cpp_pubsub REQUIRED)
 
   # check apr
   find_package(PkgConfig)
@@ -310,10 +311,14 @@ else(ROS_EDITION STREQUAL "ROS2")
   target_link_libraries(${PROJECT_NAME}
     ${LIVOX_LIDAR_SDK_LIBRARY}
     ${LIVOX_INTERFACE_TARGET}   # for custom msgs
+    ${cpp_pubsub_LIBRARIES}
     ${PPT_LIBRARY}
     ${Boost_LIBRARY}
     ${PCL_LIBRARIES}
     ${APR_LIBRARIES}
+  )
+  ament_target_dependencies(${PROJECT_NAME}
+    cpp_pubsub
   )
 
   rclcpp_components_register_node(${PROJECT_NAME}

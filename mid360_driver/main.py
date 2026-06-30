@@ -9,11 +9,15 @@ surface lives in a SEPARATE package (`mid360_imu_rbnx`) per the
 
 Lifecycle:
     on_init  — parse cfg → spawn livox launch → wait for first PointCloud2
-               → declare ros2 topic_out for primitive/lidar/lidar3d.
+               → declare ros2 topic_out for primitive/lidar/lidar3d
+                 and primitive/lidar/lidar3d_zc.
     on_shutdown — kill livox subprocess.
 
 Config (from manifest's `config:` block, delivered via Driver(CMD_INIT)):
     lidar_topic        default "/scanner/cloud"  (matches our lddc.cpp patch)
+    lidar_zc_topic     default "/scanner/cloud_zc"
+    zc_shm_name        default "robonix_zc_lidar3d"
+    zc_shm_size        default 67108864
     lidar_ip           default 192.168.1.161
     host_ip            default auto from `ip route get <lidar_ip>`
     xfer_format        default 2  (PointCloud2 XYZIT — rtabmap-friendly)
@@ -43,6 +47,7 @@ import time
 from pathlib import Path
 
 from robonix_api import Primitive, Ok, Err
+from robonix_api.atlas_types import Ros2ZcParams, Transport
 
 logging.basicConfig(
     level=os.environ.get("MID360_LOG_LEVEL", "INFO"),
@@ -122,6 +127,8 @@ def _spawn_livox(cfg: dict) -> None:
     env["LIVOX_XFER_FORMAT"] = str(cfg.get("xfer_format", 2))
     env["LIVOX_PUBLISH_FREQ"] = str(cfg.get("publish_freq", 10.0))
     env["LIVOX_FRAME_ID"] = str(cfg.get("frame_id", "livox_frame"))
+    env["ROBONIX_ZC_LIDAR3D_TOPIC"] = str(cfg.get("lidar_zc_topic", "/scanner/cloud_zc"))
+    env["ROBONIX_ZC_LIDAR3D_SHM_NAME"] = str(cfg.get("zc_shm_name", "robonix_zc_lidar3d"))
 
     log.info("spawning livox driver (xfer_format=%s)", env["LIVOX_XFER_FORMAT"])
     _livox_proc = subprocess.Popen(
@@ -255,6 +262,9 @@ def init(cfg: dict):
     without anyone power-cycling the lidar.
     """
     lidar_topic = cfg.get("lidar_topic", "/scanner/cloud")
+    lidar_zc_topic = cfg.get("lidar_zc_topic", "/scanner/cloud_zc")
+    zc_shm_name = cfg.get("zc_shm_name", "robonix_zc_lidar3d")
+    zc_shm_size = int(cfg.get("zc_shm_size", 67108864))
     sentinel_timeout = float(cfg.get("sentinel_timeout_s", 30.0))
     retries = int(cfg.get("livox_retries", 3))
 
@@ -288,19 +298,23 @@ def init(cfg: dict):
         _kill_livox()
         return Err(f"spawn static_transform_publisher failed: {e}")
 
-    # parent_frame → frame_id static TF (no-op when extrinsics absent).
-    try:
-        _spawn_stp(cfg)
-    except Exception as e:  # noqa: BLE001
-        _kill_livox()
-        return Err(f"spawn static_transform_publisher failed: {e}")
-
     cap.declare_ros2_topic(
         "robonix/primitive/lidar/lidar3d",
         topic=lidar_topic,
         qos="best_effort",
     )
-    log.info("init complete: lidar3d=%s", lidar_topic)
+    cap.declare_capability(
+        contract_id="robonix/primitive/lidar/lidar3d_zc",
+        endpoint=lidar_zc_topic,
+        transport=Transport.ROS2_ZC,
+        params=Ros2ZcParams(
+            shm_name=zc_shm_name,
+            shm_size=zc_shm_size,
+            qos_profile="best_effort",
+        ),
+        description="MID360 PointCloud2 stream over shared-memory ZC",
+    )
+    log.info("init complete: lidar3d=%s lidar3d_zc=%s", lidar_topic, lidar_zc_topic)
     return Ok()
 
 

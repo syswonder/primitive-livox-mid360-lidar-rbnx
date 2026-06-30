@@ -14,6 +14,11 @@ cd "$PKG"
 ROS_DISTRO="${ROS_DISTRO:-humble}"
 # shellcheck disable=SC1091
 set +u; source "/opt/ros/${ROS_DISTRO}/setup.bash"; set -u
+ROBONIX_ZC_SETUP="${ROBONIX_ZC_SETUP:-/home/warth/Desktop/build/ros/install/setup.bash}"
+if [[ -f "$ROBONIX_ZC_SETUP" ]]; then
+    # shellcheck disable=SC1090
+    set +u; source "$ROBONIX_ZC_SETUP"; set -u
+fi
 if [[ -f "$PKG/rbnx-build/ws/install/setup.bash" ]]; then
     # WORKAROUND: rbnx codegen overwrites ws/install/setup.bash with a
     # PYTHONPATH-only stub, clobbering colcon's chain to local_setup
