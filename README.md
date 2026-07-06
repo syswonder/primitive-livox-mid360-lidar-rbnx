@@ -2,7 +2,7 @@
 
 Robonix package wrapping the **Livox MID-360** LiDAR (Ethernet, 360° dome, 40 m range, integrated 6-axis IMU). Owns the `primitive/lidar/*` namespace. Publishes the lidar PointCloud2 on the host DDS bus and atlas-registers it under generic contracts so that mapping, navigation, and scene services discover the topic name through atlas — no hardcoded `/scanner/cloud` paths on the consumer side.
 
-The MID-360 also produces an IMU stream (`/livox/imu`, published as a side-effect of the same upstream launch). The `primitive/imu/*` contract surface for that IMU lives in a separate package, [`mid360_imu_rbnx`](https://github.com/enkerewpo/mid360_imu_rbnx). Robonix's invariant is "one primitive namespace = one package".
+The MID-360 also produces an IMU stream (`/livox/imu`, published as a side-effect of the same upstream launch). The `primitive/imu/*` contract surface for that IMU lives in a separate package, [`mid360_imu_rbnx`](https://github.com/syswonder/primitive-livox-mid360-imu-rbnx). Robonix's invariant is "one primitive namespace = one package".
 
 ## Capability surface
 
