@@ -39,10 +39,11 @@
 manifestVersion: 1
 
 package:
-  name: com.robonix.ranger.mid360_lidar
+  name: robonix.primitive.livox.mid360.lidar
   version: 0.1.0
   vendor: robonix
-  description: Livox MID-360 driver wrapper — declares lidar3d + IMU contracts.
+  description: Livox MID-360 lidar driver wrapper.
+  tags: [primitive, lidar, livox, mid360, pointcloud]
   license: MulanPSL-2.0
 
 capability_id: mid360_lidar
