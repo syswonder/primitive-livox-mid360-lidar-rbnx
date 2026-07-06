@@ -44,6 +44,7 @@ package:
   vendor: robonix
   description: Livox MID-360 lidar driver wrapper.
   tags: [primitive, lidar, livox, mid360, pointcloud]
+  maintainers: [syswonder]
   license: MulanPSL-2.0
 
 capability_id: mid360_lidar
