@@ -10,7 +10,7 @@ surface lives in a SEPARATE package (`mid360_imu_rbnx`) per the
 Lifecycle:
     on_init  — parse cfg → spawn livox launch → wait for first PointCloud2
                → declare ros2 topic_out for primitive/lidar/lidar3d
-                 and primitive/lidar/lidar3d_zc.
+                 and, when ROBONIX_ENABLE_ZC=1, primitive/lidar/lidar3d_zc.
     on_shutdown — kill livox subprocess.
 
 Config (from manifest's `config:` block, delivered via Driver(CMD_INIT)):
@@ -71,6 +71,11 @@ _livox_proc: subprocess.Popen | None = None
 _stp_proc: subprocess.Popen | None = None
 
 
+def _zc_enabled() -> bool:
+    value = os.environ.get("ROBONIX_ENABLE_ZC", "")
+    return value.lower() in {"1", "on", "true", "yes"}
+
+
 # ── livox subprocess management ──────────────────────────────────────────
 def _resolve_livox_config(cfg: dict) -> str:
     """Generate a Livox MID360_config.json with the right host_net_info.
@@ -127,8 +132,10 @@ def _spawn_livox(cfg: dict) -> None:
     env["LIVOX_XFER_FORMAT"] = str(cfg.get("xfer_format", 2))
     env["LIVOX_PUBLISH_FREQ"] = str(cfg.get("publish_freq", 10.0))
     env["LIVOX_FRAME_ID"] = str(cfg.get("frame_id", "livox_frame"))
-    env["ROBONIX_ZC_LIDAR3D_TOPIC"] = str(cfg.get("lidar_zc_topic", "/scanner/cloud_zc"))
-    env["ROBONIX_ZC_LIDAR3D_SHM_NAME"] = str(cfg.get("zc_shm_name", "robonix_zc_lidar3d"))
+    if _zc_enabled():
+        env["ROBONIX_ENABLE_ZC"] = "1"
+        env["ROBONIX_ZC_LIDAR3D_TOPIC"] = str(cfg.get("lidar_zc_topic", "/scanner/cloud_zc"))
+        env["ROBONIX_ZC_LIDAR3D_SHM_NAME"] = str(cfg.get("zc_shm_name", "robonix_zc_lidar3d"))
 
     log.info("spawning livox driver (xfer_format=%s)", env["LIVOX_XFER_FORMAT"])
     _livox_proc = subprocess.Popen(
@@ -303,18 +310,21 @@ def init(cfg: dict):
         topic=lidar_topic,
         qos="best_effort",
     )
-    cap.declare_capability(
-        contract_id="robonix/primitive/lidar/lidar3d_zc",
-        endpoint=lidar_zc_topic,
-        transport=Transport.ROS2_ZC,
-        params=Ros2ZcParams(
-            shm_name=zc_shm_name,
-            shm_size=zc_shm_size,
-            qos_profile="best_effort",
-        ),
-        description="MID360 PointCloud2 stream over shared-memory ZC",
-    )
-    log.info("init complete: lidar3d=%s lidar3d_zc=%s", lidar_topic, lidar_zc_topic)
+    if _zc_enabled():
+        cap.declare_capability(
+            contract_id="robonix/primitive/lidar/lidar3d_zc",
+            endpoint=lidar_zc_topic,
+            transport=Transport.ROS2_ZC,
+            params=Ros2ZcParams(
+                shm_name=zc_shm_name,
+                shm_size=zc_shm_size,
+                qos_profile="best_effort",
+            ),
+            description="MID360 PointCloud2 stream over shared-memory ZC",
+        )
+        log.info("init complete: lidar3d=%s lidar3d_zc=%s", lidar_topic, lidar_zc_topic)
+    else:
+        log.info("init complete: lidar3d=%s", lidar_topic)
     return Ok()
 
 

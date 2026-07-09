@@ -196,11 +196,18 @@ else(ROS_EDITION STREQUAL "ROS2")
     set(CMAKE_C_STANDARD 99)
   endif()
 
-  # cpp_pubsub's public zero-copy headers use C++17 features.
+  # Default to C++14. Robonix zero-copy is opt-in because it adds a
+  # non-upstream dependency on cpp_pubsub.
   if(NOT CMAKE_CXX_STANDARD)
-    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD 14)
   endif()
   set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+  set(ROBONIX_ENABLE_ZC OFF)
+  if(DEFINED ENV{ROBONIX_ENABLE_ZC} AND "$ENV{ROBONIX_ENABLE_ZC}" STREQUAL "1")
+    set(ROBONIX_ENABLE_ZC ON)
+  endif()
+  message(STATUS "ROBONIX_ENABLE_ZC = ${ROBONIX_ENABLE_ZC}")
 
   list(INSERT CMAKE_MODULE_PATH 0 "${PROJECT_SOURCE_DIR}/cmake/modules")
 
@@ -228,7 +235,9 @@ else(ROS_EDITION STREQUAL "ROS2")
   find_package(std_msgs REQUIRED)
   find_package(builtin_interfaces REQUIRED)
   find_package(rosidl_default_generators REQUIRED)
-  find_package(cpp_pubsub REQUIRED)
+  if(ROBONIX_ENABLE_ZC)
+    find_package(cpp_pubsub REQUIRED)
+  endif()
 
   # check apr
   find_package(PkgConfig)
@@ -280,7 +289,10 @@ else(ROS_EDITION STREQUAL "ROS2")
     src/call_back/lidar_common_callback.cpp
     src/call_back/livox_lidar_callback.cpp
   )
-  target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
+  if(ROBONIX_ENABLE_ZC)
+    target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE ROBONIX_ENABLE_ZC)
+  endif()
 
   target_include_directories(${PROJECT_NAME} PRIVATE ${livox_sdk_INCLUDE_DIRS})
 
@@ -313,15 +325,15 @@ else(ROS_EDITION STREQUAL "ROS2")
   target_link_libraries(${PROJECT_NAME}
     ${LIVOX_LIDAR_SDK_LIBRARY}
     ${LIVOX_INTERFACE_TARGET}   # for custom msgs
-    ${cpp_pubsub_LIBRARIES}
     ${PPT_LIBRARY}
     ${Boost_LIBRARY}
     ${PCL_LIBRARIES}
     ${APR_LIBRARIES}
   )
-  ament_target_dependencies(${PROJECT_NAME}
-    cpp_pubsub
-  )
+  if(ROBONIX_ENABLE_ZC)
+    target_link_libraries(${PROJECT_NAME} ${cpp_pubsub_LIBRARIES})
+    ament_target_dependencies(${PROJECT_NAME} cpp_pubsub)
+  endif()
 
   rclcpp_components_register_node(${PROJECT_NAME}
     PLUGIN "livox_ros::DriverNode"

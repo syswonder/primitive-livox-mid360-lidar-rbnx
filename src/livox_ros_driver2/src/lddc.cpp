@@ -42,10 +42,26 @@
 namespace livox_ros {
 
 namespace {
+#ifdef ROBONIX_ENABLE_ZC
 const char* EnvOrDefault(const char* name, const char* fallback) {
   const char* value = std::getenv(name);
   return value && *value ? value : fallback;
 }
+
+bool RobonixZcEnabled() {
+  const char* value = std::getenv("ROBONIX_ENABLE_ZC");
+  if (value == nullptr || *value == '\0') {
+    return false;
+  }
+  return std::strcmp(value, "1") == 0 ||
+         std::strcmp(value, "ON") == 0 ||
+         std::strcmp(value, "on") == 0 ||
+         std::strcmp(value, "TRUE") == 0 ||
+         std::strcmp(value, "true") == 0 ||
+         std::strcmp(value, "YES") == 0 ||
+         std::strcmp(value, "yes") == 0;
+}
+#endif
 }  // namespace
 
 /** Lidar Data Distribute Control--------------------------------------------*/
@@ -200,7 +216,7 @@ void Lddc::PrepareExit(void) {
     DRIVER_INFO(*cur_node_, "Save the bag file successfully!");
     bag_ = nullptr;
   }
-#elif defined BUILDING_ROS2
+#elif defined(BUILDING_ROS2) && defined(ROBONIX_ENABLE_ZC)
   for (auto& pub : private_zc_pub_) {
     pub.reset();
   }
@@ -363,7 +379,7 @@ void Lddc::PublishPointcloud2Data(const uint8_t index, const uint64_t timestamp,
 #endif
 
   if (kOutputToRos == output_type_) {
-#ifdef BUILDING_ROS2
+#if defined(BUILDING_ROS2) && defined(ROBONIX_ENABLE_ZC)
     PublishZcPointcloud2Data(index, cloud);
 #endif
     publisher_ptr->publish(cloud);
@@ -376,7 +392,7 @@ void Lddc::PublishPointcloud2Data(const uint8_t index, const uint64_t timestamp,
   }
 }
 
-#ifdef BUILDING_ROS2
+#if defined(BUILDING_ROS2) && defined(ROBONIX_ENABLE_ZC)
 bool Lddc::EnsureZcShm(const char* shm_name) {
   static constexpr size_t kZcShmSize = 67108864;
 
@@ -403,6 +419,10 @@ bool Lddc::EnsureZcShm(const char* shm_name) {
 }
 
 void Lddc::PublishZcPointcloud2Data(const uint8_t index, const PointCloud2& cloud) {
+  if (!RobonixZcEnabled()) {
+    return;
+  }
+
   const char* zc_shm_name = EnvOrDefault(
       "ROBONIX_ZC_LIDAR3D_SHM_NAME", "robonix_zc_lidar3d");
 
@@ -748,11 +768,15 @@ std::shared_ptr<rclcpp::PublisherBase> Lddc::GetCurrentPublisher(uint8_t handle)
       std::string topic_name(name_str);
       queue_size = queue_size * 2; // queue size is 64 for only one lidar
       private_pub_[handle] = CreatePublisher(transfer_format_, topic_name, queue_size);
+#ifdef ROBONIX_ENABLE_ZC
       if (kPointCloud2Msg == transfer_format_) {
-        private_zc_pub_[handle] = std::make_shared<ZcPublisher>(
-            cur_node_->get_node_base_interface().get(), topic_name + "_zc",
-            rclcpp::QoS(10).best_effort());
+        if (RobonixZcEnabled()) {
+          private_zc_pub_[handle] = std::make_shared<ZcPublisher>(
+              cur_node_->get_node_base_interface().get(), topic_name + "_zc",
+              rclcpp::QoS(10).best_effort());
+        }
       }
+#endif
     }
     return private_pub_[handle];
   } else {
@@ -760,12 +784,16 @@ std::shared_ptr<rclcpp::PublisherBase> Lddc::GetCurrentPublisher(uint8_t handle)
       std::string topic_name("scanner/cloud");
       queue_size = queue_size * 8; // shared queue size is 256, for all lidars
       global_pub_ = CreatePublisher(transfer_format_, topic_name, queue_size);
+#ifdef ROBONIX_ENABLE_ZC
       if (kPointCloud2Msg == transfer_format_) {
-        global_zc_pub_ = std::make_shared<ZcPublisher>(
-            cur_node_->get_node_base_interface().get(),
-            std::string(EnvOrDefault("ROBONIX_ZC_LIDAR3D_TOPIC", "/scanner/cloud_zc")),
-            rclcpp::QoS(10).best_effort());
+        if (RobonixZcEnabled()) {
+          global_zc_pub_ = std::make_shared<ZcPublisher>(
+              cur_node_->get_node_base_interface().get(),
+              std::string(EnvOrDefault("ROBONIX_ZC_LIDAR3D_TOPIC", "/scanner/cloud_zc")),
+              rclcpp::QoS(10).best_effort());
+        }
       }
+#endif
     }
     return global_pub_;
   }
