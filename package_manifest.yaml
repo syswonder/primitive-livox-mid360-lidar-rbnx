@@ -27,6 +27,7 @@
 # Capability surface (mode = abstract pattern, transport = wire):
 #   primitive/lidar/driver         mode=rpc        transport=gRPC
 #   primitive/lidar/lidar3d        mode=topic_out  transport=ROS2  PointCloud2 XYZIT
+#   primitive/lidar/lidar3d_zc     mode=topic_out  transport=ROS2_ZC  PointCloud2 XYZIT
 #   primitive/lidar/lidar_snapshot mode=rpc        transport=MCP   (TODO)
 #
 # Config (passed via `Driver(CMD_INIT, config_json)`):
@@ -52,4 +53,5 @@ start: bash scripts/start.sh
 capabilities:
   - name: robonix/primitive/lidar/driver
   - name: robonix/primitive/lidar/lidar3d
+  - name: robonix/primitive/lidar/lidar3d_zc
   - name: robonix/primitive/lidar/lidar_snapshot

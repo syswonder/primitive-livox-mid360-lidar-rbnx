@@ -29,6 +29,9 @@
 
 #include "driver_node.h"
 #include "lds.h"
+#if defined(BUILDING_ROS2) && defined(ROBONIX_ENABLE_ZC)
+#include <zc_pubsub.hpp>
+#endif
 
 namespace livox_ros {
 
@@ -109,6 +112,12 @@ class Lddc final {
   void InitPointcloud2MsgHeader(PointCloud2& cloud);
   void InitPointcloud2Msg(const StoragePacket& pkg, PointCloud2& cloud, uint64_t& timestamp);
   void PublishPointcloud2Data(const uint8_t index, uint64_t timestamp, const PointCloud2& cloud);
+#if defined(BUILDING_ROS2) && defined(ROBONIX_ENABLE_ZC)
+  // Initialize the shared-memory segment only when a ZC subscriber exists.
+  bool EnsureZcShm(const char* shm_name);
+  // Mirror a PointCloud2 into shared memory and publish its object name.
+  void PublishZcPointcloud2Data(const uint8_t index, const PointCloud2& cloud);
+#endif
 
   void InitCustomMsg(CustomMsg& livox_msg, const StoragePacket& pkg, uint8_t index);
   void FillPointsToCustomMsg(CustomMsg& livox_msg, const StoragePacket& pkg);
@@ -151,6 +160,11 @@ class Lddc final {
 #elif defined BUILDING_ROS2
   PublisherPtr private_pub_[kMaxSourceLidar];
   PublisherPtr global_pub_;
+#ifdef ROBONIX_ENABLE_ZC
+  std::shared_ptr<ZcPublisher> private_zc_pub_[kMaxSourceLidar];
+  std::shared_ptr<ZcPublisher> global_zc_pub_;
+  std::string zc_active_shm_name_;
+#endif
   PublisherPtr private_imu_pub_[kMaxSourceLidar];
   PublisherPtr global_imu_pub_;
 #endif
