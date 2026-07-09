@@ -196,10 +196,11 @@ else(ROS_EDITION STREQUAL "ROS2")
     set(CMAKE_C_STANDARD 99)
   endif()
 
-  # Default to C++14
+  # cpp_pubsub's public zero-copy headers use C++17 features.
   if(NOT CMAKE_CXX_STANDARD)
-    set(CMAKE_CXX_STANDARD 14)
+    set(CMAKE_CXX_STANDARD 17)
   endif()
+  set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
   list(INSERT CMAKE_MODULE_PATH 0 "${PROJECT_SOURCE_DIR}/cmake/modules")
 
@@ -279,6 +280,7 @@ else(ROS_EDITION STREQUAL "ROS2")
     src/call_back/lidar_common_callback.cpp
     src/call_back/livox_lidar_callback.cpp
   )
+  target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
 
   target_include_directories(${PROJECT_NAME} PRIVATE ${livox_sdk_INCLUDE_DIRS})
 

@@ -200,6 +200,19 @@ void Lddc::PrepareExit(void) {
     DRIVER_INFO(*cur_node_, "Save the bag file successfully!");
     bag_ = nullptr;
   }
+#elif defined BUILDING_ROS2
+  for (auto& pub : private_zc_pub_) {
+    pub.reset();
+  }
+  global_zc_pub_.reset();
+  if (!zc_active_shm_name_.empty()) {
+    try {
+      shm_shutdown(zc_active_shm_name_);
+      zc_active_shm_name_.clear();
+    } catch (const std::exception& e) {
+      DRIVER_WARN(*cur_node_, "ZC shared memory shutdown failed: %s", e.what());
+    }
+  }
 #endif
   if (lds_) {
     lds_->PrepareExit();
