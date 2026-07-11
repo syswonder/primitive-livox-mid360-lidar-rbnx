@@ -44,10 +44,14 @@ colcon build --symlink-install --cmake-args -DBUILD_TESTING=OFF
 cd "$PKG"
 
 # Robonix codegen for atlas_bridge.py imports.
-FLAGS=(--out-dir "$PKG/rbnx-build/codegen")
+FLAGS=(--ros2 --out-dir "$PKG/rbnx-build/codegen")
 [[ "$CLEAN" == "1" ]] && FLAGS+=(--clean)
 echo "[mid360_lidar/build] rbnx codegen ${FLAGS[*]}"
 rbnx codegen -p "$PKG" "${FLAGS[@]}"
+
+ROS2_IDL="$PKG/rbnx-build/codegen/ros2_idl"
+echo "[mid360_lidar/build] colcon build (Robonix ROS 2 interfaces)"
+(cd "$ROS2_IDL" && colcon build)
 
 touch "$PKG/rbnx-build/.rbnx-built"
 echo "[mid360_lidar/build] done."
