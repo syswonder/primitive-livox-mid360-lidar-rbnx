@@ -288,13 +288,6 @@ def init(cfg: dict):
         _kill_livox()
         return Err(f"spawn static_transform_publisher failed: {e}")
 
-    # parent_frame → frame_id static TF (no-op when extrinsics absent).
-    try:
-        _spawn_stp(cfg)
-    except Exception as e:  # noqa: BLE001
-        _kill_livox()
-        return Err(f"spawn static_transform_publisher failed: {e}")
-
     cap.declare_ros2_topic(
         "robonix/primitive/lidar/lidar3d",
         topic=lidar_topic,
