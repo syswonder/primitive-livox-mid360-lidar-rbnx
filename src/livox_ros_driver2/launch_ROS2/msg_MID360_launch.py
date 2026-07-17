@@ -5,9 +5,9 @@ from launch_ros.actions import Node
 import launch
 
 ################### user configure parameters for ros2 start ###################
-# rbnx vendored default: 2 = PointCloud2 (XYZIT) — what rtabmap consumes.
+# rbnx vendored default: 0 = ROS2 sensor_msgs/PointCloud2 (PointXYZRTLT).
 # Override at runtime by exporting LIVOX_XFER_FORMAT before `ros2 launch`.
-xfer_format   = int(os.environ.get('LIVOX_XFER_FORMAT', '2'))
+xfer_format   = int(os.environ.get('LIVOX_XFER_FORMAT', '0'))
 multi_topic   = 0    # 0-All LiDARs share the same topic, 1-One LiDAR one topic
 data_src      = 0    # 0-lidar, others-Invalid data src
 publish_freq  = float(os.environ.get('LIVOX_PUBLISH_FREQ', '10.0'))

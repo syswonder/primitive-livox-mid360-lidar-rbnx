@@ -25,8 +25,8 @@
 # the lidar3d data interface on atlas.
 #
 # Capability surface (mode = abstract pattern, transport = wire):
-#   primitive/lidar/driver         mode=rpc        transport=gRPC
-#   primitive/lidar/lidar3d        mode=topic_out  transport=ROS2  PointCloud2 XYZIT
+#   lifecycle/driver               mode=rpc        transport=gRPC (shared)
+#   primitive/lidar/lidar3d        mode=topic_out  transport=ROS2  PointCloud2 PointXYZRTLT
 #   primitive/lidar/lidar_snapshot mode=rpc        transport=MCP   (TODO)
 #
 # Config (passed via `Driver(CMD_INIT, config_json)`):
@@ -34,7 +34,7 @@
 #   imu_topic          default "/livox/imu"
 #   lidar_ip           default 192.168.1.161         (override per robot)
 #   host_ip            default auto from `ip route get <lidar_ip>`
-#   xfer_format        default 2                     (PointCloud2 XYZIT)
+#   xfer_format        default 0                     (ROS2 PointCloud2)
 #   sentinel_timeout_s default 30.0
 manifestVersion: 1
 
@@ -50,6 +50,5 @@ build: bash scripts/build.sh
 start: bash scripts/start.sh
 
 capabilities:
-  - name: robonix/primitive/lidar/driver
   - name: robonix/primitive/lidar/lidar3d
   - name: robonix/primitive/lidar/lidar_snapshot

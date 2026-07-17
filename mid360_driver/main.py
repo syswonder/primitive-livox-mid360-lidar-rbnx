@@ -16,7 +16,7 @@ Config (from manifest's `config:` block, delivered via Driver(CMD_INIT)):
     lidar_topic        default "/scanner/cloud"  (matches our lddc.cpp patch)
     lidar_ip           default 192.168.1.161
     host_ip            default auto from `ip route get <lidar_ip>`
-    xfer_format        default 2  (PointCloud2 XYZIT — rtabmap-friendly)
+    xfer_format        default 0  (ROS2 PointCloud2 PointXYZRTLT)
     publish_freq       default 10.0
     frame_id           default "livox_frame"  (lidar's own frame on /tf)
     parent_frame       default "base_link"    (body frame for the STP)
@@ -119,7 +119,7 @@ def _spawn_livox(cfg: dict) -> None:
     config_path = _resolve_livox_config(cfg)
     env = dict(os.environ)
     env["LIVOX_MID360_CONFIG"] = config_path
-    env["LIVOX_XFER_FORMAT"] = str(cfg.get("xfer_format", 2))
+    env["LIVOX_XFER_FORMAT"] = str(cfg.get("xfer_format", 0))
     env["LIVOX_PUBLISH_FREQ"] = str(cfg.get("publish_freq", 10.0))
     env["LIVOX_FRAME_ID"] = str(cfg.get("frame_id", "livox_frame"))
 

@@ -16,10 +16,11 @@ config:
   # detection chooses the wrong NIC.
   host_ip: auto
 
-  # integer, default: 2.
-  # Livox SDK transfer format. 2 selects the PointXYZRTLT payload expected by
-  # the bundled ROS driver and Mapping integration.
-  xfer_format: 2
+  # integer, default: 0.
+  # Livox SDK transfer format. 0 publishes sensor_msgs/PointCloud2 with the
+  # Livox PointXYZRTLT fields. Format 2 uses pcl::PointCloud and is rejected by
+  # livox_ros_driver2 on ROS2.
+  xfer_format: 0
 
   # float (Hz), default: 10.0.
   # Point-cloud publication frequency requested from the Livox driver.
