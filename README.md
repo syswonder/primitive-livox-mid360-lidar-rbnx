@@ -10,13 +10,13 @@ The `mode` is the abstract communication pattern declared in the contract TOML (
 
 | Contract                                 | Mode      | Transport | Source / handler                            |
 | ---------------------------------------- | --------- | --------- | ------------------------------------------- |
-| `robonix/primitive/lidar/driver`         | rpc       | gRPC      | `Driver(CMD_INIT, config_json)` — lifecycle |
+| `robonix/lifecycle/driver`               | rpc       | gRPC      | shared `Driver(CMD_INIT, config_json)` lifecycle |
 | `robonix/primitive/lidar/lidar3d`        | topic_out | ROS 2     | `/scanner/cloud` (PointCloud2)              |
 | `robonix/primitive/lidar/lidar_snapshot` | rpc       | MCP       | one-shot capture (TODO)                     |
 
 ## Driver-init lifecycle
 
-`start.sh` brings up the atlas bridge process — no ROS spawn at this point. The bridge opens a gRPC server on `MID360_DRIVER_PORT` (default 50231), `RegisterCapability`s + declares **only** `primitive/lidar/driver` on atlas, then blocks on heartbeat awaiting `Driver(CMD_INIT, config_json)`.
+`start.sh` brings up the atlas bridge process — no ROS spawn at this point. The shared Robonix runtime registers the lifecycle driver, then the provider blocks on heartbeat awaiting `Driver(CMD_INIT, config_json)`.
 
 When `rbnx boot` invokes Init it passes the manifest's `config:` block as JSON. The handler resolves the host's IP for `Livox/host_net_info` (config override `host_ip:`, env `LIVOX_HOST_IP`, or auto-detect via `ip route get <lidar_ip>`), generates an MID360 config JSON with the right IPs, spawns `ros2 launch livox_ros_driver2 msg_MID360_launch.py` with the appropriate environment (`LIVOX_MID360_CONFIG`, `LIVOX_XFER_FORMAT`), waits for the first PointCloud2 on the configured topic, declares `primitive/lidar/lidar3d` on atlas, and returns ok. Atlas only ever advertises endpoints we've confirmed are publishing.
 
@@ -41,7 +41,7 @@ mid360_lidar_rbnx/
 `src/livox_ros_driver2.patch` documents the diff against [Livox-SDK/livox_ros_driver2](https://github.com/Livox-SDK/livox_ros_driver2). The vendored copy already has them applied:
 
 1. `config/MID360_config.json` — host_net_info IPs `192.168.1.5 → .50`, lidar IP `.12 → .161`. Atlas_bridge can override at runtime via the `host_ip` / `lidar_ip` config keys; the JSON file just provides the baseline.
-2. `launch_ROS2/msg_MID360_launch.py` — `xfer_format` default `1 → 2` (PointCloud2 XYZIT instead of Livox CustomMsg). Now also reads `LIVOX_XFER_FORMAT` / `LIVOX_PUBLISH_FREQ` / `LIVOX_FRAME_ID` from the env so atlas_bridge can pass config through.
+2. `launch_ROS2/msg_MID360_launch.py` — `xfer_format` default `1 → 0` (ROS2 `sensor_msgs/PointCloud2` instead of Livox CustomMsg). It also reads `LIVOX_XFER_FORMAT` / `LIVOX_PUBLISH_FREQ` / `LIVOX_FRAME_ID` from the env so the provider can pass config through. Format `2` is not valid on this ROS2 driver path because it attempts to publish `pcl::PointCloud`.
 3. `src/lddc.cpp` — global publisher topic `livox/lidar → scanner/cloud`. `multi_topic=1` keeps publishing per-lidar topics under `livox/lidar_*` unchanged.
 
 ## Config (passed via `Driver(CMD_INIT, config_json)`)
@@ -51,7 +51,7 @@ mid360_lidar_rbnx/
   "lidar_topic": "/scanner/cloud",
   "lidar_ip": "192.168.1.161",
   "host_ip": "",
-  "xfer_format": 2,
+  "xfer_format": 0,
   "publish_freq": 10.0,
   "frame_id": "livox_frame",
   "sentinel_timeout_s": 30.0
