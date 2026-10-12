@@ -12,7 +12,6 @@ The `mode` is the abstract communication pattern declared in the contract TOML (
 | ---------------------------------------- | --------- | --------- | ------------------------------------------- |
 | `robonix/lifecycle/driver`               | rpc       | gRPC      | shared `Driver(CMD_INIT, config_json)` lifecycle |
 | `robonix/primitive/lidar/lidar3d`        | topic_out | ROS 2     | `/scanner/cloud` (PointCloud2)              |
-| `robonix/primitive/lidar/lidar_snapshot` | rpc       | MCP       | one-shot capture (TODO)                     |
 
 ## Driver-init lifecycle
 
