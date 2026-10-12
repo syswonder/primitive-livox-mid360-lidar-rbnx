@@ -27,7 +27,6 @@
 # Capability surface (mode = abstract pattern, transport = wire):
 #   lifecycle/driver               mode=rpc        transport=gRPC (shared)
 #   primitive/lidar/lidar3d        mode=topic_out  transport=ROS2  PointCloud2 PointXYZRTLT
-#   primitive/lidar/lidar_snapshot mode=rpc        transport=MCP   (TODO)
 #
 # Config (passed via `Driver(CMD_INIT, config_json)`):
 #   lidar_topic        default "/scanner/cloud"      (matches our lddc.cpp patch)
@@ -51,4 +50,3 @@ start: bash scripts/start.sh
 
 capabilities:
   - name: robonix/primitive/lidar/lidar3d
-  - name: robonix/primitive/lidar/lidar_snapshot
