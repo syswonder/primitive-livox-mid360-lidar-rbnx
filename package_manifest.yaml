@@ -50,3 +50,4 @@ start: bash scripts/start.sh
 
 capabilities:
   - name: robonix/primitive/lidar/lidar3d
+    transport: ros2
